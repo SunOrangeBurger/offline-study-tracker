@@ -183,4 +183,27 @@ export const api = {
     set: (theme: Theme) =>
       invoke<Theme>("set_theme", { theme }),
   },
+
+  syllabus: {
+    export: (tracker_id: string) =>
+      invoke<{
+        name: string;
+        description?: string;
+        color?: string;
+        version: string;
+        subjects: Array<{
+          name: string;
+          units: Array<{
+            name: string;
+            topics: string[];
+          }>;
+        }>;
+      }>("export_syllabus", { trackerId: tracker_id }),
+
+    import: (semester_id: string, syllabus: any) =>
+      invoke<Tracker>("import_syllabus", {
+        semesterId: semester_id,
+        syllabus: syllabus,
+      }),
+  },
 };

@@ -423,6 +423,142 @@ pub fn delete_topic(
 }
 
 // ============================================================================
+// SYLLABUS EXPORT/IMPORT COMMANDS
+// ============================================================================
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct SyllabusExport {
+    name: String,
+    description: Option<String>,
+    color: Option<String>,
+    version: String,
+    subjects: Vec<SyllabusSubject>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct SyllabusSubject {
+    name: String,
+    units: Vec<SyllabusUnit>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct SyllabusUnit {
+    name: String,
+    topics: Vec<String>,
+}
+
+#[tauri::command]
+pub fn export_syllabus(
+    state: tauri::State<AppState>,
+    #[allow(non_snake_case)]
+    trackerId: String,
+) -> Result<SyllabusExport, String> {
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+    
+    // Get tracker info
+    let tracker = db.get_tracker(&trackerId)
+        .map_err(|e| e.to_string())?
+        .ok_or("Tracker not found")?;
+    
+    // Get all subjects
+    let subjects = db.get_subjects_by_tracker(&trackerId)
+        .map_err(|e| e.to_string())?;
+    
+    let mut syllabus_subjects = Vec::new();
+    
+    for subject in subjects {
+        let units = db.get_units_by_subject(&subject.id)
+            .map_err(|e| e.to_string())?;
+        
+        let mut syllabus_units = Vec::new();
+        
+        for unit in units {
+            let topics = db.get_topics_by_unit(&unit.id)
+                .map_err(|e| e.to_string())?;
+            
+            let topic_names: Vec<String> = topics.iter()
+                .map(|t| t.name.clone())
+                .collect();
+            
+            syllabus_units.push(SyllabusUnit {
+                name: unit.name,
+                topics: topic_names,
+            });
+        }
+        
+        syllabus_subjects.push(SyllabusSubject {
+            name: subject.name,
+            units: syllabus_units,
+        });
+    }
+    
+    Ok(SyllabusExport {
+        name: tracker.name,
+        description: tracker.description,
+        color: tracker.color,
+        version: "1.0".to_string(),
+        subjects: syllabus_subjects,
+    })
+}
+
+#[tauri::command]
+pub fn import_syllabus(
+    state: tauri::State<AppState>,
+    #[allow(non_snake_case)]
+    semesterId: String,
+    syllabus: SyllabusExport,
+) -> Result<Tracker, String> {
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+    let now = get_current_timestamp();
+    
+    // Create tracker
+    let tracker_id = Uuid::new_v4().to_string();
+    let tracker = db.create_tracker(
+        tracker_id.clone(),
+        semesterId,
+        syllabus.name,
+        syllabus.description,
+        syllabus.color,
+        now,
+    ).map_err(|e| e.to_string())?;
+    
+    // Create subjects, units, and topics
+    for subject_data in syllabus.subjects {
+        let subject_id = Uuid::new_v4().to_string();
+        db.create_subject(subject_id.clone(), tracker_id.clone(), subject_data.name, now)
+            .map_err(|e| e.to_string())?;
+        
+        for (unit_order, unit_data) in subject_data.units.iter().enumerate() {
+            let unit_id = Uuid::new_v4().to_string();
+            db.create_unit(
+                unit_id.clone(),
+                subject_id.clone(),
+                unit_data.name.clone(),
+                unit_order as i32,
+                now,
+            ).map_err(|e| e.to_string())?;
+            
+            for (topic_order, topic_name) in unit_data.topics.iter().enumerate() {
+                let topic_id = Uuid::new_v4().to_string();
+                db.create_topic(
+                    topic_id,
+                    unit_id.clone(),
+                    topic_name.clone(),
+                    topic_order as i32,
+                    now,
+                ).map_err(|e| e.to_string())?;
+            }
+        }
+    }
+    
+    // Update tracker statistics
+    db.update_tracker_statistics(&tracker_id, now)
+        .map_err(|e| e.to_string())?;
+    
+    Ok(tracker)
+}
+
+// ============================================================================
 // HELPER STRUCTS (for API responses)
 // ============================================================================
 

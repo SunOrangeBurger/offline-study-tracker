@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useTheme } from "../components/ThemeProvider";
 import { api, TrackerDataResponse } from "../api/client";
 import { Tracker } from "../types";
-import { ArrowLeft, Plus } from "lucide-react";
+import { ArrowLeft, Plus, Download } from "lucide-react";
 import { CircularProgressIndicator } from "../components/CircularProgressIndicator";
 import { Modal, ConfirmDialog } from "../components/Modal";
 import { TestScheduleForm } from "../components/TestScheduleForm";
@@ -123,6 +123,24 @@ export const TrackerDashboard: React.FC<TrackerDashboardProps> = ({
     }
   };
 
+  const handleExportSyllabus = async () => {
+    try {
+      const syllabusData = await api.syllabus.export(tracker.id);
+      const jsonString = JSON.stringify(syllabusData, null, 2);
+      const blob = new Blob([jsonString], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${tracker.name.replace(/[^a-z0-9]/gi, '_')}_syllabus.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Failed to export syllabus:", err);
+    }
+  };
+
   const selectedSubjectData = selectedSubject
     ? data?.subjects.find((s) => s.subject.id === selectedSubject)
     : null;
@@ -179,23 +197,43 @@ export const TrackerDashboard: React.FC<TrackerDashboardProps> = ({
         style={{
           display: "flex",
           alignItems: "center",
-          gap: "1rem",
+          justifyContent: "space-between",
           marginBottom: "2rem",
         }}
       >
+        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+          <button
+            onClick={onBack}
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              color: colors.accent,
+              padding: 0,
+            }}
+          >
+            <ArrowLeft size={24} />
+          </button>
+          <h1 style={{ color: colors.fg, margin: 0 }}>{tracker.name}</h1>
+        </div>
         <button
-          onClick={onBack}
+          onClick={handleExportSyllabus}
           style={{
-            background: "none",
+            backgroundColor: colors.accent,
+            color: colors.bg,
             border: "none",
+            borderRadius: "0.5rem",
+            padding: "0.5rem 1rem",
             cursor: "pointer",
-            color: colors.accent,
-            padding: 0,
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            fontWeight: 500,
           }}
         >
-          <ArrowLeft size={24} />
+          <Download size={18} />
+          Export Syllabus
         </button>
-        <h1 style={{ color: colors.fg, margin: 0 }}>{tracker.name}</h1>
       </div>
 
       {/* Progress and Priority Tests Row */}

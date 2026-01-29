@@ -69,6 +69,8 @@ pub fn run() {
             commands::create_topic,
             commands::update_topic,
             commands::delete_topic,
+            commands::export_syllabus,
+            commands::import_syllabus,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
