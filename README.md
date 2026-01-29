@@ -1,0 +1,5 @@
+THIS IS A LOCAL STUDY APP
+IM ADDING A WAY TO SHARE AND ADD JSON FILE SO THAT PEOPLE CAN ADOPT IT QUICKLY
+ANY CONTRIBUTIONS ARE WELCOME
+It's built using the tauri framework, with a rust backend and JS frontend
+peace out
